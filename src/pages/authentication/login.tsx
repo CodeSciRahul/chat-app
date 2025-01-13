@@ -61,8 +61,12 @@ export function LoginForm({
       {
       toast.success(`${response?.data?.message}`);
       dispatch(setUserInfo(response?.data));
-      navigate("/");
-      }
+      const screenWidth = window.innerWidth;
+      if (screenWidth < 768) {
+        navigate("/users");
+      } else {
+        navigate("/");
+      }      }
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         toast.error(`${error.response?.data?.message}`);

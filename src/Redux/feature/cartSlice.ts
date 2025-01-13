@@ -2,62 +2,34 @@
 
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
+interface receiver{
+  _id: string | null,
+  name: string | null,
+  email: string | null,
+  mobile: string | null;
 }
 
-interface CartState {
-  items: CartItem[];
-  totalQuantity: number;
-  totalPrice: number;
-}
-
-const initialState: CartState = {
-  items: [],
-  totalQuantity: 0,
-  totalPrice: 0,
+const initialState: receiver = {
+  _id: null,
+  name: null,
+  email: null,
+  mobile: null
 };
 
-export const cartSlice = createSlice({
+export const receiverSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
-    addToCart: (state, action: PayloadAction<Omit<CartItem, "quantity">>) => {
-      const existingItem = state.items.find((item) => item.id === action.payload.id);
-
-      if (existingItem) {
-        existingItem.quantity += 1;
-      } else {
-        state.items.push({ ...action.payload, quantity: 1 });
-      }
-
-      state.totalQuantity += 1;
-      state.totalPrice += action.payload.price;
-    },
-    
-    removeFromCart: (state, action: PayloadAction<string>) => {
-      const itemIndex = state.items.findIndex((item) => item.id === action.payload);
-      if (itemIndex !== -1) {
-        const item = state.items[itemIndex];
-        item.quantity -= 1;
-        state.totalQuantity -= 1;
-        state.totalPrice -= item.price;
-        if (item.quantity === 0) {
-          state.items.splice(itemIndex, 1);
-        }
-      }
-    },
-    clearCart: (state) => {
-      state.items = [];
-      state.totalQuantity = 0;
-      state.totalPrice = 0;
+    selectReciver: (state, action: PayloadAction<receiver>) => {
+      const {_id, name, email, mobile} = action?.payload
+      state._id = _id,
+      state.email = email,
+      state.name = name
+      state.mobile = mobile
     },
   },
 });
 
-export const { addToCart, removeFromCart, clearCart } = cartSlice.actions;
+export const { selectReciver} = receiverSlice.actions;
 
-export default cartSlice.reducer;
+export default receiverSlice.reducer;

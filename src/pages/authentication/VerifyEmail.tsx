@@ -5,7 +5,8 @@ import { useNavigate } from "react-router-dom";
 import Confetti from 'react-confetti';
 import { verifyUser } from "@/service/apiService";
 import { useSearchParams } from "react-router-dom";
-
+import { AxiosResponse } from 'axios';
+import { AxiosError } from "axios";
 
 export const VerifyUserByEmailLink = () => {
   const navigate = useNavigate();
@@ -20,29 +21,26 @@ export const VerifyUserByEmailLink = () => {
     const verifyUserHandler = async () => {
         setisLoading(true)
       try {
-        const response: any = await verifyUser(token);
-        console.log(response);
-        if (response?.error) {
-          setisverified(false);
-          setmessage(response?.error?.message);
-        } else if (response?.data) {
+        const response: AxiosResponse = await verifyUser(token);
           setisverified(true);
           setmessage(response?.data?.message);
           setTimeout(() => {
             navigate("/login");
           }, 3000);
-        }
-      } catch (err: any) {
-        setisverified(false);
-        console.log(err);
-        setmessage(`${err?.response?.data?.message}`);
+      } catch (err: unknown) {
+        if (err instanceof AxiosError) {
+          setisverified(false);
+          console.log(err);
+          setmessage(`${err?.response?.data?.message}`);
+        } 
+       
       } finally {
         setisLoading(false)
       }
     };
 
     verifyUserHandler();
-  }, [token, verifyUser, navigate]);
+  }, [token, navigate]);
 
   return (
     <>
