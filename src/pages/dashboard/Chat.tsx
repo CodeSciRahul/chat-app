@@ -10,7 +10,7 @@ import { FaArrowLeft, FaPaperclip } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 // Socket setup
-const socket: Socket = io("http://localhost:5000", {
+const socket: Socket = io("https://chat-app-backend-85a8.onrender.com", {
   transports: ["websocket"],
   reconnection: true,
   reconnectionDelay: 1000,
