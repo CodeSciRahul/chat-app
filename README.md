@@ -1,50 +1,50 @@
-# React + TypeScript + Vite
+# Chat App Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The **Chat App Frontend** is a React-based application that provides a user-friendly interface for real-time chatting. It integrates seamlessly with the Chat App Backend to enable features like messaging, file sharing, and user management.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+# Live Link
+https://chat-app--ruddy.vercel.app
 
-## Expanding the ESLint configuration
+## Features
+- User authentication and authorization.
+- Real-time messaging powered by Socket.IO.
+- File sharing support for images, videos, and documents.
+- Responsive design using **Tailwind CSS** and **ShadCN UI**.
+- Seamless integration with the Chat App Backend.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+---
 
-- Configure the top-level `parserOptions` property like this:
+## Technologies Used
+- **React.js**: Frontend framework.
+- **Redux**: State management.
+- **TypeScript**: Type safety.
+- **Tailwind CSS**: Styling framework.
+- **ShadCN UI**: Prebuilt UI components.
+- **Socket.IO**: Real-time communication.
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+---
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+## Prerequisites
+Before you begin, ensure you have the following installed:
+- **Node.js**: [Download](https://nodejs.org/)
+- **npm**: Comes with Node.js.
+- A code editor like **VS Code**.
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+---
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+# Set .env 
+VITE_PUBLIC_BASE_URL = https://chat-app-backend-85a8.onrender.com/api
+
+
+## Getting Started
+
+### 1. Follow the cmd to use repo
+```bash
+git clone https://github.com/CodeSciRahul/chat-app-frontend.git
+npm install
+npm run dev
+
+
+
