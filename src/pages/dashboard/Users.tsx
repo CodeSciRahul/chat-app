@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/Redux/Hooks/store";
-import { getReceivers, addUser } from "@/service/apiService"; // Importing addUser function
+import { getReceivers, addUser } from "@/service/apiService"; 
 import { selectReciver } from "@/Redux/feature/cartSlice";
 import toast from "react-hot-toast";
 import { AxiosError } from "axios";
@@ -19,12 +19,15 @@ type Receiver = {
 type Receivers = Receiver[];
 
 export function Users({ className }: { className?: string }) {
-  const [emailOrMobile, setEmailOrMobile] = useState<string>(""); // State to store user input (email or mobile)
-  const [receivers, setReceivers] = useState<Receivers | undefined>([]); // To store the list of receivers
+  const [emailOrMobile, setEmailOrMobile] = useState<string>("");
+  const [receivers, setReceivers] = useState<Receivers | undefined>([]);
+  const [isloading, setisloading] = useState<boolean>(true)
+  const [isaddLoading, setisaddLoading] = useState<boolean>(false)
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
   const fetchReceivers = async () => {
+    setisloading(true)
     try {
       const response = await getReceivers();
       if (response?.data) {
@@ -33,6 +36,8 @@ export function Users({ className }: { className?: string }) {
       }
     } catch (error) {
       console.log(error);
+    }finally{
+      setisloading(false)
     }
   };
 
@@ -40,7 +45,7 @@ export function Users({ className }: { className?: string }) {
     const payload = emailOrMobile.includes('@')
       ? { email: emailOrMobile }
       : { mobile: emailOrMobile };
-
+      setisaddLoading(true)
     try {
       const response: AxiosResponse = await addUser(payload);
       if (response?.data) {
@@ -54,6 +59,8 @@ export function Users({ className }: { className?: string }) {
       } else {
         toast.error("An unexpected error occurred");
       }
+    }finally {
+      setisaddLoading(false)
     }
   };
 
@@ -77,11 +84,13 @@ export function Users({ className }: { className?: string }) {
             <Button
               variant="default"
               onClick={handleAddUser} // Call the function to add user
-              disabled={!emailOrMobile} // Disable if no input is provided
+              disabled={!emailOrMobile || isaddLoading} // Disable if no input is provided
             >
               Add
             </Button>
           </div>
+          {isloading && <div className="text-md text-center">Loading...</div>}
+          {(receivers?.length === 0 && !isloading) && <div className="text-md text-center">Please add recipients using the search above to proceed with the chat.</div>}
 
           {/* Display List of Receivers */}
           <div className="space-y-1">

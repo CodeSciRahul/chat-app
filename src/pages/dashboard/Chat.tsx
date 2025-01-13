@@ -10,7 +10,7 @@ import { FaArrowLeft, FaPaperclip } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 // Socket setup
-const socket: Socket = io("http://localhost:5000", {
+const socket: Socket = io("https://chat-app-backend-85a8.onrender.com", {
   transports: ["websocket"],
   reconnection: true,
   reconnectionDelay: 1000,
@@ -48,6 +48,7 @@ const Chat: React.FC = () => {
   const [message, setMessage] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isFileUploading, setisFileUploading] = useState<boolean>(false);
+  const [isloading, setisloading] = useState<boolean>(false)
 
   const selectedReceiverId = useAppSelecter((state) => state.cart._id);
   const selectedReceiverName = useAppSelecter((state) => state?.cart.name);
@@ -68,19 +69,6 @@ const Chat: React.FC = () => {
     socket.on("receive_message", (newMessage: ServerMessage) => {
       // Prevent duplication of messages you just sent
       if (newMessage.sender._id === userId) return;
-
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        {
-          senderId: newMessage.sender._id,
-          senderName: newMessage.sender.name,
-          receiverId: newMessage.receiver._id,
-          content: newMessage.content,
-          fileUrl: newMessage.fileUrl,
-          fileType: newMessage.fileType,
-          timestamp: newMessage.createdAt,
-        },
-      ]);
     });
 
     return () => {
@@ -90,6 +78,7 @@ const Chat: React.FC = () => {
 
   // Fetch initial chat history
   const fetchChatMessages = async (userId: string, selectedReceiverId: string) => {
+    setisloading(true)
     try {
       const response = await Chats(userId, selectedReceiverId);
       const data = response?.data as ServerMessage[];
@@ -105,6 +94,8 @@ const Chat: React.FC = () => {
       setMessages(formattedMessages);
     } catch (error) {
       console.error("Error fetching chat messages:", error);
+    }finally{
+      setisloading(false)
     }
   };
 
@@ -135,9 +126,9 @@ const Chat: React.FC = () => {
       setMessages((prevMessages) => [
         ...prevMessages,
         {
-          senderId: (uploadedMessage as ServerMessage).sender._id,
+          senderId: userId!,
           senderName: userName!,
-          receiverId: (uploadedMessage as ServerMessage).receiver._id,
+          receiverId: selectedReceiverId,
           fileUrl: (uploadedMessage as ServerMessage).fileUrl,
           fileType: (uploadedMessage as ServerMessage).fileType,
           timestamp: (uploadedMessage as ServerMessage).createdAt,
@@ -166,7 +157,7 @@ const Chat: React.FC = () => {
       return;
     }
 
-    const newMessage = {
+    const newMessage: Message = {
       senderId: userId!,
       senderName: userName!,
       receiverId: selectedReceiverId,
@@ -174,10 +165,11 @@ const Chat: React.FC = () => {
       timestamp: new Date().toISOString(),
     };
     socket.emit("send_message", newMessage);
+    console.log("new Messages", newMessage)
     setMessages((prevMessages) => [...prevMessages, newMessage]);
     setMessage("");
   };
-
+  
   // Handle send button click
   const handleSendClick = () => {
     if (file) {
@@ -193,13 +185,14 @@ const Chat: React.FC = () => {
     <Card className="flex flex-col h-full border rounded-sm">
       <CardHeader className="p-4 border-b">
         <div className="flex gap-2">
-          <Button onClick={() => navigate("/users")} variant="outline" className="block sm:hidden">
+          <Button onClick={() => navigate("/users")} variant="ghost" className="block sm:hidden">
             <FaArrowLeft />
           </Button>
           <h3 className="text-lg font-semibold">Chat with {selectedReceiverName || "Select a receiver"}</h3>
         </div>
       </CardHeader>
       <CardContent className="flex-1 p-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
+       {isloading && <p>Loading...</p>}
         {messages.map((msg, index) => (
           <div
             key={index}
@@ -218,7 +211,7 @@ const Chat: React.FC = () => {
                 )}
               </a>
             )}
-            <p className="text-xs text-gray-500 absolute bottom-0 right-1">
+            <p className="text-xs text-gray-300 top-2 absolute bottom-0 right-1">
               {new Date(msg.timestamp).toLocaleString()}
             </p>
           </div>

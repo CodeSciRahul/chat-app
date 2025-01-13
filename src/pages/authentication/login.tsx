@@ -65,7 +65,7 @@ export function LoginForm({
       if (screenWidth < 768) {
         navigate("/users");
       } else {
-        navigate("/");
+        navigate("/chat");
       }      }
     } catch (error: unknown) {
       if (error instanceof AxiosError) {

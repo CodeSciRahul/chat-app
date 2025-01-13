@@ -19,34 +19,38 @@ type Receivers = Receiver[];
 
 export function Sidebar({ className }: { className?: string }) {
   const [activeState, setActiveState] = useState<string>("");
-  const [emailOrMobile, setEmailOrMobile] = useState<string>(""); // State to store user input (email or mobile)
-  const [receivers, setReceivers] = useState<Receivers | undefined>([]); // To store the list of receivers
+  const [emailOrMobile, setEmailOrMobile] = useState<string>("");
+  const [receivers, setReceivers] = useState<Receivers | undefined>([]); 
+  const [isloading, setisloading] = useState<boolean>(false)
+  const [isaddLoading, setisaddLoading] = useState<boolean>(false)
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
   const fetchReceivers = async () => {
+    setisloading(true)
     try {
       const response = await getReceivers();
       if (response?.data) {
         const data = response.data as { receivers: Receivers };
-        setReceivers(data.receivers); // Update the state with fetched receivers
+        setReceivers(data.receivers);
       }
     } catch (error) {
       console.log(error);
+    }finally{
+      setisloading(false);
     }
   };
 
   const handleAddUser = async () => {
-    const payload = emailOrMobile.includes('@') // Check if the input is an email or mobile number
+    const payload = emailOrMobile.includes('@')
       ? { email: emailOrMobile }
       : { mobile: emailOrMobile };
-
+      setisaddLoading(true)
     try {
       const response = await addUser(payload);
       if (response?.data) {
-        // Successfully added user, fetch updated receivers list
         fetchReceivers();
-        setEmailOrMobile(""); // Clear the input after successful add
+        setEmailOrMobile("");
         toast.success(`${(response?.data as { message: string })?.message}`)
       }
     } catch (error: unknown) {
@@ -55,6 +59,8 @@ export function Sidebar({ className }: { className?: string }) {
       } else {
         toast.error("An unexpected error occurred");
       }
+    }finally{
+      setisaddLoading(false)
     }
   };
 
@@ -72,17 +78,19 @@ export function Sidebar({ className }: { className?: string }) {
               type="text"
               placeholder="Enter email or mobile"
               value={emailOrMobile}
-              onChange={(e) => setEmailOrMobile(e.target.value)} // Capture user input
+              onChange={(e) => setEmailOrMobile(e.target.value)}
               className="p-2 border border-gray-300 rounded"
             />
             <Button
               variant="default"
-              onClick={handleAddUser} // Call the function to add user
-              disabled={!emailOrMobile} // Disable if no input is provided
+              onClick={handleAddUser}
+              disabled={!emailOrMobile || isaddLoading}
             >
               Add
             </Button>
           </div>
+          {isloading && <div className="text-md text-center">Loading...</div>}
+          {(receivers?.length === 0 && !isloading) && <div className="text-md text-center">Please add recipients using the search above to proceed with the chat.</div>}  
 
           {/* Display List of Receivers */}
           <div className="space-y-1">
