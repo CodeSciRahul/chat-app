@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { Chats, upload } from "@/service/apiService";
 import { FaArrowLeft, FaPaperclip } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { LuDelete } from "react-icons/lu";
 
 // Socket setup
 const socket: Socket = io("https://chat-app-backend-85a8.onrender.com", {
@@ -228,7 +229,8 @@ const Chat: React.FC = () => {
           </div>
         ))}
       </CardContent>
-      <CardFooter className="flex items-center gap-2 p-4 border-t">
+      <CardFooter className="flex flex-col items-start gap-2 p-4 border-t w-full">
+        <div className="flex gap-2 w-full">
         <label htmlFor="file-upload" className="cursor-pointer">
           <FaPaperclip size={20} className="text-gray-600 hover:text-gray-800" />
         </label>
@@ -248,6 +250,42 @@ const Chat: React.FC = () => {
         <Button onClick={handleSendClick} disabled={isFileUploading}>
           Send
         </Button>
+        </div>
+        {file && (
+  <div className="relative border p-2 rounded-md">
+    <div>
+      {file.type.startsWith("image/") && (
+        <img
+          src={URL.createObjectURL(file)}
+          alt="Preview"
+          className="w-14 h-14 object-cover rounded-md"
+        />
+      )}
+      {file.type.startsWith("video/") && (
+        <video
+          src={URL.createObjectURL(file)}
+          controls
+          className="w-24 h-24 rounded-md"
+        />
+      )}
+      {file.type === "application/pdf" && (
+        <p className="text-gray-600">PDF: {file.name}</p>
+      )}
+      {!file.type.startsWith("image/") &&
+        !file.type.startsWith("video/") &&
+        file.type !== "application/pdf" && (
+          <p className="text-gray-600">File: {file.name}</p>
+        )}
+    </div>
+    <button
+      onClick={() => setFile(null)}
+      className="bg-red-500 rounded-full text-white text-sm p-1 absolute top-[-5px] right-[-5px]"
+    >
+      <LuDelete className="text-sm"/>
+    </button>
+  </div>
+)}
+
       </CardFooter>
     </Card>
   );
