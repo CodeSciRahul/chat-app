@@ -69,6 +69,18 @@ const Chat: React.FC = () => {
     socket.on("receive_message", (newMessage: ServerMessage) => {
       // Prevent duplication of messages you just sent
       if (newMessage.sender._id === userId) return;
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          senderId: newMessage.sender._id,
+          senderName: newMessage.sender.name,
+          receiverId: newMessage.receiver._id,
+          content: newMessage.content,
+          fileUrl: newMessage.fileUrl,
+          fileType: newMessage.fileType,
+          timestamp: newMessage.createdAt,
+        },
+      ]);
     });
 
     return () => {
@@ -165,7 +177,6 @@ const Chat: React.FC = () => {
       timestamp: new Date().toISOString(),
     };
     socket.emit("send_message", newMessage);
-    console.log("new Messages", newMessage)
     setMessages((prevMessages) => [...prevMessages, newMessage]);
     setMessage("");
   };
