@@ -6,13 +6,18 @@ import { Provider } from 'react-redux'
 import { store } from './Redux/Store.ts'
 import { ErrorBoundary } from 'react-error-boundary'
 import FallbackUI from './components/fallbackUI.tsx'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
+const queryClient = new QueryClient()
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary FallbackComponent={FallbackUI}>
   <Provider store={store}>
+  <QueryClientProvider client={queryClient}>
   <StrictMode>
     <App />
   </StrictMode>
+  </QueryClientProvider>
   </ Provider>
   </ErrorBoundary>
 )

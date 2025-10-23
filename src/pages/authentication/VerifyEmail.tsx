@@ -3,7 +3,7 @@ import correct from "@/assets/correct.png";
 import failed from "@/assets/delete.png"
 import { useNavigate } from "react-router-dom";
 import Confetti from 'react-confetti';
-import { verifyUser } from "@/service/apiService";
+import { verifyUser } from "@/services/apiService";
 import { useSearchParams } from "react-router-dom";
 import { AxiosResponse } from 'axios';
 import { AxiosError } from "axios";

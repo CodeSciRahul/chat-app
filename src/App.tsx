@@ -8,6 +8,7 @@ import { Toaster } from "react-hot-toast";
 import { useAppSelecter } from "./Redux/Hooks/store";
 import Chat from "./pages/dashboard/Chat";
 import {Users} from "./pages/dashboard/Users"
+import Profile from "./pages/dashboard/Profile";
 
 function App() {
   const token: string | null = useAppSelecter((state: { auth: { token: string | null } }) => state?.auth?.token)
@@ -26,7 +27,7 @@ function App() {
             <Route path="" element={<Dashboard />} >
             <Route path="chat" element={<Chat />}></Route>
             </Route>
-
+            <Route path="profile" element={<Profile />}></Route>
             <Route path="users" element={<Users />}></Route>
           </Route>
         </Routes>

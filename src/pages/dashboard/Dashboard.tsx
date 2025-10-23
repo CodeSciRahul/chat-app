@@ -1,4 +1,3 @@
-import { Separator } from "@/components/ui/separator";
 import { Sidebar } from "@/components/sidebar";
 import { Outlet } from "react-router-dom";
 import { ErrorBoundary } from "react-error-boundary";
@@ -9,14 +8,11 @@ export default function Dashboard() {
   return (
     <>
     <ErrorBoundary FallbackComponent={FallbackUI}>
-     <div className="h-screen overflow-hidden flex flex-col">
+     <div className="h-screen overflow-hidden flex flex-col bg-slate-50">
 
-        <Separator orientation="horizontal" className="w-full" />
-
-        <div className="flex flex-1 bg-background mb-12">
-          <Sidebar className="hidden sm:block h-full w-[30%]" />
-          <Separator orientation="vertical" className="h-[100vh]" />
-          <div className="flex-grow w-full bg-slate-200">
+        <div className="flex flex-1 mb-16">
+          <Sidebar className="hidden sm:block h-full w-[30%] shadow-sm" />
+          <div className="flex-grow w-full bg-white shadow-sm">
             <Outlet />
           </div>
         </div>
