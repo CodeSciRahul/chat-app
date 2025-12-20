@@ -12,22 +12,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
-import { userSignup } from "@/service/apiService";
+import { userSignup } from "@/services/apiService";
 import toast from "react-hot-toast";
 import { AxiosError } from 'axios';
-
-type SignupRes = {
-  message: string;
-  id: string
-};
-
-
-type SignupFormInputs = {
-  name: string;
-  email: string;
-  mobile: string;
-  password: string;
-};
+import { SignupResponse, SignupFormInputs } from "@/types";
 
 export function SignupForm({
   className,
@@ -42,7 +30,7 @@ export function SignupForm({
 
   const onSubmit = async (data: SignupFormInputs) => {
     try {
-      const response = await userSignup(data) as { data: SignupRes };
+      const response = await userSignup(data) as { data: SignupResponse };
       if(response?.data)
       {
       toast.success(`${response?.data?.message}`);

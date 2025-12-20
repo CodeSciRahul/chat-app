@@ -1,124 +1,225 @@
-import React, { useState, useEffect } from "react";
-import io, { Socket } from "socket.io-client";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardFooter, CardHeader, CardContent } from "@/components/ui/card";
 import { useAppSelecter } from "@/Redux/Hooks/store";
 import toast from "react-hot-toast";
-import { Chats, upload } from "@/service/apiService";
-import { FaArrowLeft, FaPaperclip } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { Chats, upload } from "@/services/apiService";
+import { 
+  useGroupDetails, 
+  useGroupMembers, 
+  useAddGroupMember, 
+  useRemoveGroupMember, 
+  useUpdateGroupMemberRole, 
+  useLeaveGroup, 
+  useUpdateGroup 
+} from "@/hooks/useGroups";
+import { FaPaperclip, FaReply, FaSmile, FaTimes } from "react-icons/fa";
 import { LuDelete } from "react-icons/lu";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import {
+  Message,
+  ServerMessage,
+  GroupFormData,
+  GroupMember
+} from "@/types";
+import { EmojiPicker } from "@/components/emojiPicker";
+import { Reaction } from "@/types";
+import { socketHandlers, setupSocketListeners, cleanupSocketListeners } from "@/services/socketService";
+import { GroupInfoModal } from "@/components/modals/GroupInfoModal";
+import { GroupSettingsModal } from "@/components/modals/GroupSettingsModal";
+import { RemoveReactionModal } from "@/components/modals/RemoveReactionModal";
+import { ChatHeader } from "@/components/chat/ChatHeader";
 
-// Socket setup
-const socket: Socket = io("https://chat-app-backend-85a8.onrender.com", {
-  transports: ["websocket"],
-  reconnection: true,
-  reconnectionDelay: 1000,
-  reconnectionAttempts: 5,
-  timeout: 5000,
-});
 
-// Define a normalized message type for state
-interface Message {
-  senderId: string;
-  senderName: string;
-  receiverId: string;
-  content?: string;
-  fileUrl?: string;
-  fileType?: string;
-  timestamp: string;
-}
-
-// Server response structure for messages
-interface ServerMessage {
-  _id: string;
-  sender: { _id: string; name: string; email: string };
-  receiver: { _id: string; name: string; email: string };
-  content?: string;
-  fileUrl?: string;
-  fileType?: string;
-  timestamp: string;
-  createdAt: string;
-  updatedAt: string;
-  __v: number;
-}
 
 const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [message, setMessage] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isFileUploading, setisFileUploading] = useState<boolean>(false);
-  const [isloading, setisloading] = useState<boolean>(false)
-
+  const [isGroupMenuOpen, setIsGroupMenuOpen] = useState<boolean>(false)
+  const [isGroupInfoOpen, setIsGroupInfoOpen] = useState<boolean>(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false)
+  const [updateGroupData, setUpdateGroupData] = useState<GroupFormData>({
+    name: "",
+    description: "",
+    settings: {
+      isPrivate: false,
+      allowMemberInvite: false,
+      adminOnlyMessages: false
+    }
+  })
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState<boolean>(false);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+  const [selectedReaction, setSelectedReaction] = useState<Reaction[] | null>(null);
+  const [isRemoveReactionOpen, setIsRemoveReactionOpen] = useState<boolean>(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
   const selectedReceiverId = useAppSelecter((state) => state.cart._id);
   const selectedReceiverName = useAppSelecter((state) => state?.cart.name);
+  const selectionType = useAppSelecter((state) => state?.cart.selectionType);
   const userId = useAppSelecter((state) => state.auth.user?._id);
   const userName = useAppSelecter((state) => state?.auth.user?.name);
 
-  const navigate = useNavigate();
+  const { data: chatMessages, isLoading: isChatMessagesLoading, error: chatMessagesError } = useQuery({
+    queryKey: ["chatMessages", userId, selectedReceiverId, selectionType],
+    queryFn: () => {
+      if (selectionType === 'group') {
+        return Chats(userId!, undefined, selectedReceiverId!);
+      } else {
+        return Chats(userId!, selectedReceiverId!);
+      }
+    },
+    enabled: !!userId && !!selectedReceiverId,
+  })
+
+  // Update messages when chat data changes
+  useEffect(() => {
+    if (chatMessages?.data && Array.isArray(chatMessages.data)) {
+      setMessages(chatMessages.data.map((msg: ServerMessage) => ({
+        _id: msg._id,
+        senderId: msg?.sender._id,
+        senderName: msg?.sender.name,
+        receiverId: msg.receiver?._id || '',
+        content: msg?.content,
+        fileUrl: msg?.fileUrl,
+        fileType: msg?.fileType,
+        timestamp: msg?.createdAt,
+        groupId: msg?.groupId,
+        messageType: msg?.messageType,
+        replyTo: msg?.replyTo ? {
+          _id: msg?.replyTo._id,
+          senderId: msg?.replyTo.sender._id,
+          senderName: msg?.replyTo.sender.name,
+          receiverId: msg?.replyTo.receiver?._id || '',
+          content: msg?.replyTo.content,
+          fileUrl: msg?.replyTo.fileUrl,
+          fileType: msg?.replyTo.fileType,
+          timestamp: msg?.replyTo.createdAt,
+          groupId: msg?.replyTo.groupId,
+          messageType: msg?.replyTo.messageType,
+          replyTo: null,
+          reactions: msg?.replyTo.reactions,
+        } : null,
+        reactions: msg?.reactions,
+        deleted: msg?.deleted,
+      })));
+    }
+  }, [chatMessages])
+
+  // Handle chat messages error
+  useEffect(() => {
+    if (chatMessagesError) {
+      toast.error("Error fetching chat messages");
+    }
+  }, [chatMessagesError])
+
+  const { mutateAsync: uploadFile } = useMutation({
+    mutationFn: (formData: FormData) => upload(formData),
+    onSuccess: (data) => {
+      const uploadedMessage = data.data;
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          senderId: userId!,
+          senderName: userName!,
+          receiverId: selectionType === 'group' ? '' : selectedReceiverId!,
+          fileUrl: (uploadedMessage as ServerMessage).fileUrl,
+          fileType: (uploadedMessage as ServerMessage).fileType,
+          timestamp: (uploadedMessage as ServerMessage).createdAt,
+          groupId: selectionType === 'group' ? selectedReceiverId : undefined,
+          messageType: selectionType === 'group' ? 'group' : 'private',
+        } as Message,
+      ]);
+      setFile(null);
+      toast.success("File sent successfully!");
+    },
+    onError: () => {
+      toast.error("Error uploading file");
+    },
+  })
+
+  // Group details query
+  const { data: groupDetails } = useGroupDetails(
+    selectionType === 'group' ? selectedReceiverId : null
+  );
+  // Group members query
+  const { data: groupMembersData } = useGroupMembers(
+    selectionType === 'group' ? selectedReceiverId : null
+  );
+  useEffect(() => {
+    if (groupDetails){
+      groupDetails?.members?.forEach((member: GroupMember) => {
+        if(member?.user?._id === userId && member?.role === 'admin'){
+          setIsAdmin(true);
+          return;
+        }
+      });
+    }
+  }, [groupDetails, userId]);
+  // Group operations mutations
+  const { mutateAsync: addGroupMemberMutation } = useAddGroupMember();
+  const { mutateAsync: removeGroupMemberMutation } = useRemoveGroupMember();
+  const { mutateAsync: updateGroupMemberRoleMutation } = useUpdateGroupMemberRole();
+  const { mutateAsync: leaveGroupMutation } = useLeaveGroup();
+  const { mutateAsync: updateGroupMutation } = useUpdateGroup();
+
 
   // Join a room based on selected receiver
   useEffect(() => {
     if (selectedReceiverId && userId) {
-      socket.emit("join_room", { senderId: userId, receiverId: selectedReceiverId });
+      if (selectionType === 'group') {
+        socketHandlers.joinGroup(selectedReceiverId, userId);
+      } else {
+        socketHandlers.joinRoom(userId, selectedReceiverId);
+      }
     }
-  }, [selectedReceiverId, userId]);
+
+    // Cleanup function to leave group when component unmounts or selection changes
+    // return () => {
+    //   if (selectedReceiverId && selectionType === 'group') {
+    //     socketHandlers.leaveGroup(selectedReceiverId, userId);
+    //   }
+    // };
+  }, [selectedReceiverId, userId, selectionType]);
 
   // Listen for new messages from the server
   useEffect(() => {
-    socket.on("receive_message", (newMessage: ServerMessage) => {
-      // Prevent duplication of messages you just sent
-      if (newMessage.sender._id === userId) return;
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        {
-          senderId: newMessage.sender._id,
-          senderName: newMessage.sender.name,
-          receiverId: newMessage.receiver._id,
-          content: newMessage.content,
-          fileUrl: newMessage.fileUrl,
-          fileType: newMessage.fileType,
-          timestamp: newMessage.createdAt,
-        },
-      ]);
-    });
+    setupSocketListeners(setMessages);
 
     return () => {
-      socket.off("receive_message");
+      cleanupSocketListeners();
     };
-  }, [userId]);
+  }, []);
 
-  // Fetch initial chat history
-  const fetchChatMessages = async (userId: string, selectedReceiverId: string) => {
-    setisloading(true)
-    try {
-      const response = await Chats(userId, selectedReceiverId);
-      const data = response?.data as ServerMessage[];
-      const formattedMessages = data.map((msg: ServerMessage) => ({
-        senderId: msg.sender._id,
-        senderName: msg.sender.name,
-        receiverId: msg.receiver._id,
-        content: msg.content,
-        fileUrl: msg.fileUrl,
-        fileType: msg.fileType,
-        timestamp: msg.createdAt,
-      }));
-      setMessages(formattedMessages);
-    } catch (error) {
-      console.error("Error fetching chat messages:", error);
-    }finally{
-      setisloading(false)
-    }
-  };
+  // Cleanup socket connection on component unmount
+  // useEffect(() => {
+  //   return () => {
+  //     socket.disconnect();
+  //   };
+  // }, []);
 
+  // Handle click outside emoji picker to close it
   useEffect(() => {
-    if (userId && selectedReceiverId) {
-      fetchChatMessages(userId, selectedReceiverId);
-    }
-  }, [userId, selectedReceiverId]);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setIsEmojiPickerOpen(false);
+        setSelectedMessageId(null);
+      }
+    };
 
-  // Handle file upload
+    if (isEmojiPickerOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isEmojiPickerOpen]);
+
+
+  // Handle file upload using TanStack Query mutation
   const handleFileUpload = async () => {
     if (!file || !selectedReceiverId) {
       toast.error("Select a file and receiver to continue.");
@@ -126,62 +227,46 @@ const Chat: React.FC = () => {
     }
 
     setisFileUploading(true);
-
     const formData = new FormData();
     formData.append("file", file);
     formData.append("sender", userId!);
-    formData.append("receiver", selectedReceiverId);
+
+    if (selectionType === 'group') {
+      formData.append("groupId", selectedReceiverId);
+      formData.append("messageType", "group");
+    } else {
+      formData.append("receiver", selectedReceiverId);
+      formData.append("messageType", "private");
+    }
 
     try {
-      const response = await upload(formData);
-      const uploadedMessage = response.data;
-
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        {
-          senderId: userId!,
-          senderName: userName!,
-          receiverId: selectedReceiverId,
-          fileUrl: (uploadedMessage as ServerMessage).fileUrl,
-          fileType: (uploadedMessage as ServerMessage).fileType,
-          timestamp: (uploadedMessage as ServerMessage).createdAt,
-        },
-      ]);
-
-      setFile(null);
-      toast.success("File sent successfully!");
+      await uploadFile(formData);
     } catch (error) {
       console.error("File upload failed:", error);
-      toast.error("Failed to send the file.");
     } finally {
       setisFileUploading(false);
     }
   };
 
-  // Handle sending a text message
   const sendMessage = () => {
     if (!message.trim() || !selectedReceiverId) {
       toast.error("Select a receiver to continue chat");
       return;
     }
 
-    if (!socket.connected) {
-      console.error("Socket is not connected");
-      return;
-    }
-
-    const newMessage: Message = {
+    socketHandlers.sendMessage({
       senderId: userId!,
-      senderName: userName!,
-      receiverId: selectedReceiverId,
+      receiverId: selectionType === 'group' ? undefined : selectedReceiverId,
+      groupId: selectionType === 'group' ? selectedReceiverId : undefined,
       content: message.trim(),
-      timestamp: new Date().toISOString(),
-    };
-    socket.emit("send_message", newMessage);
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
+      messageType: selectionType === 'group' ? 'group' : 'private',
+      replyTo: replyToMessage?._id || undefined
+    });
+    
     setMessage("");
+    setReplyToMessage(null);
   };
-  
+
   // Handle send button click
   const handleSendClick = () => {
     if (file) {
@@ -194,100 +279,326 @@ const Chat: React.FC = () => {
   };
 
   return (
-    <Card className="flex flex-col h-full border rounded-sm">
-      <CardHeader className="p-4 border-b">
-        <div className="flex gap-2">
-          <Button onClick={() => navigate("/users")} variant="ghost" className="block sm:hidden">
-            <FaArrowLeft />
-          </Button>
-          <h3 className="text-lg font-semibold">Chat with {selectedReceiverName || "Select a receiver"}</h3>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-1 p-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
-       {isloading && <p>Loading...</p>}
+    <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Header */}
+      <ChatHeader
+        selectedReceiverName={selectedReceiverName}
+        selectionType={selectionType || null}
+        isGroupMenuOpen={isGroupMenuOpen}
+        setIsGroupMenuOpen={setIsGroupMenuOpen}
+        onGroupInfoClick={() => {
+          setIsGroupMenuOpen(false);
+          setIsGroupInfoOpen(true);
+        }}
+        onSettingsClick={() => {
+          setIsGroupMenuOpen(false);
+          // Pre-populate update group data
+          if (groupDetails) {
+            setUpdateGroupData({
+              name: groupDetails.name || "",
+              description: groupDetails.description || "",
+              settings: {
+                isPrivate: groupDetails.settings?.isPrivate || false,
+                allowMemberInvite: groupDetails.settings?.allowMemberInvite || false,
+                adminOnlyMessages: groupDetails.settings?.adminOnlyMessages || false
+              }
+            });
+          }
+          setIsSettingsOpen(true);
+        }}
+        onLeaveGroup={() => {
+          if (!selectedReceiverId) return;
+          setIsGroupMenuOpen(false);
+          leaveGroupMutation(selectedReceiverId);
+        }}
+        isAdmin = {isAdmin}
+      />
+
+      {/* Group Info Modal */}
+      <GroupInfoModal
+        isOpen={isGroupInfoOpen}
+        onOpenChange={setIsGroupInfoOpen}
+        groupDetails={groupDetails}
+        groupMembers={groupMembersData || null}
+      />
+
+      {/* Settings Modal */}
+      <GroupSettingsModal
+        isOpen={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        groupMembers={groupMembersData || null}
+        updateGroupData={updateGroupData}
+        setUpdateGroupData={setUpdateGroupData}
+        selectedReceiverId={selectedReceiverId}
+        onAddMember={(payload) => {
+          if (!selectedReceiverId) return;
+          addGroupMemberMutation({ groupId: selectedReceiverId, payload });
+        }}
+        onRemoveMember={(groupId, memberId) => {
+          removeGroupMemberMutation({ groupId, memberId });
+        }}
+        onUpdateMemberRole={(groupId, memberId, role) => {
+          updateGroupMemberRoleMutation({ groupId, memberId, role });
+        }}
+        onUpdateGroup={(groupId, data) => {
+          updateGroupMutation({ groupId, data });
+        }}
+      />
+
+      {/* Remove Reaction Modal */}
+      <RemoveReactionModal
+        isOpen={isRemoveReactionOpen}
+        onOpenChange={setIsRemoveReactionOpen}
+        selectedReaction={selectedReaction}
+        selectedMessageId={selectedMessageId}
+        userId={userId}
+        onRemoveReaction={socketHandlers.removeReaction}
+        setSelectedMessageId={setSelectedMessageId}
+        setSelectedReaction={setSelectedReaction}
+        setIsRemoveReactionOpen={setIsRemoveReactionOpen}
+      />
+
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ maxHeight: "calc(100vh - 200px)" }}>
+        {isChatMessagesLoading && (
+          <div className="flex justify-center items-center py-8">
+            <div className="flex items-center gap-2 text-slate-500">
+              <div className="w-4 h-4 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin"></div>
+              <span>Loading messages...</span>
+            </div>
+          </div>
+        )}
+
         {messages.map((msg, index) => (
           <div
             key={index}
-            className={`mb-2 p-2 relative rounded-lg shadow ${
-              msg.senderId === userId ? "self-end bg-blue-400 text-white" : "self-start bg-white text-gray-800 border"
-            }`}
+            className={`flex cursor-pointer ${msg?.senderId === userId ? "justify-end" : "justify-start"}`}
           >
-            <p className="font-bold">{msg.senderId === userId ? "You" : msg.senderName}</p>
-            {msg.content && <p>{msg.content}</p>}
-            {msg.fileUrl && (
-              <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-                {msg.fileType?.startsWith("image/") ? (
-                  <img src={msg.fileUrl} alt="Uploaded file" className="w-32 h-32 object-cover rounded-lg" />
-                ) : (
-                  "View File"
+            <div className={`flex items-center gap-2 group ${msg?.senderId === userId ? "flex-row" : "flex-row-reverse"}`}>
+              <div className="hidden group-hover:block relative">
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setReplyToMessage(msg);
+                }}>
+                  <FaReply size={16} />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setIsEmojiPickerOpen(!isEmojiPickerOpen);
+                  setSelectedMessageId(msg._id);
+                }}>
+                  <FaSmile size={16} />
+                </Button>
+                {isEmojiPickerOpen && selectedMessageId === msg._id && (
+                  <div ref={emojiPickerRef} className="absolute bottom-10 right-0 z-50">
+                    <div 
+                      className="w-64 h-48 overflow-hidden rounded-lg shadow-lg border border-slate-200 bg-white"
+                      style={{
+                        width: '278px',
+                        height: '220px'
+                      }}
+                    >
+                      <div 
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          transform: 'scale(0.8)',
+                          transformOrigin: 'top left'
+                        }}
+                      >
+                        <EmojiPicker onEmojiSelect={(emoji) => {
+                          socketHandlers.sendReaction(
+                            selectedMessageId!,
+                            emoji,
+                            userId!,
+                            setSelectedMessageId,
+                            selectionType === 'group' ? selectedReceiverId ?? undefined : undefined);
+                        }} />
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </a>
-            )}
-            <p className="text-xs text-gray-300 top-2 absolute bottom-0 right-1">
-              {new Date(msg.timestamp).toLocaleString()}
-            </p>
+              </div>
+              <div className="relative">
+                <div
+                  className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${msg?.senderId === userId
+                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-md"
+                    : "bg-white text-slate-800 border border-slate-200 rounded-bl-md"
+                    }`}
+                >
+                  {(msg?.senderId !== userId && selectionType === 'group') && (
+                    <p className="text-xs font-medium text-slate-600 mb-1">{msg.senderName}</p>
+                  )}
+                  {msg.replyTo && (
+                    <div className={`mb-2 p-2 rounded-lg border-l-2 ${msg?.senderId === userId
+                      ? "bg-white/20 border-white/40"
+                      : "bg-slate-50 border-slate-300"
+                      }`}>
+                      <p className={`text-xs font-medium ${msg?.senderId === userId ? "text-blue-100" : "text-slate-500"
+                        }`}>
+                        Replying to {msg.replyTo.senderName}
+                      </p>
+                      <p className={`text-xs truncate ${msg?.senderId === userId ? "text-white/80" : "text-slate-600"
+                        }`}>
+                        {msg.replyTo.content}
+                      </p>
+                    </div>
+                  )}
+                  {msg?.content && (
+                    <p className="text-sm leading-relaxed">{msg.content}</p>
+                  )}
+                  {msg?.fileUrl && (
+                    <div className="mt-2">
+                      {msg.fileType?.startsWith("image/") ? (
+                        <img
+                          src={msg.fileUrl}
+                          alt="Uploaded file"
+                          className="w-32 h-32 object-cover rounded-lg shadow-sm"
+                        />
+                      ) : (
+                        <a
+                          href={msg.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${msg?.senderId === userId
+                            ? "bg-white/20 hover:bg-white/30 text-white"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                            }`}
+                        >
+                          📎 View File
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  <p className={`text-xs mt-2 ${msg?.senderId === userId ? "text-blue-100" : "text-slate-400"
+                    }`}>
+                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                {msg?.reactions && (
+                  <div className="absolute bottom-[-8px] left-3 flex max-w-full">
+                    <div className="flex items-center gap-1 max-w-[calc(100%-20px)] overflow-hidden">
+                      {msg?.reactions?.slice(0, 5).map((reaction: Reaction, index: number) => (
+                        <button 
+                          key={reaction?._id || index} 
+                          className="text-slate-500 hover:text-slate-700 transition-colors" 
+                          onClick={() => {
+                            setSelectedMessageId(msg._id);
+                            setSelectedReaction(msg?.reactions || [] as Reaction[]);
+                            setIsRemoveReactionOpen(true);
+                          }}
+                        >
+                          {reaction?.emoji}
+                        </button>
+                      ))}
+                      {msg?.reactions?.length > 5 && (
+                        <span className="text-slate-400 text-xs ml-1">
+                          +{msg.reactions.length - 5}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         ))}
-      </CardContent>
-      <CardFooter className="flex flex-col items-start gap-2 p-4 border-t w-full">
-        <div className="flex gap-2 w-full">
-        <label htmlFor="file-upload" className="cursor-pointer">
-          <FaPaperclip size={20} className="text-gray-600 hover:text-gray-800" />
-        </label>
-        <input
-          id="file-upload"
-          type="file"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="hidden"
-        />
-        <Input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Type your message..."
-          className="flex-1"
-        />
-        <Button onClick={handleSendClick} disabled={isFileUploading}>
-          Send
-        </Button>
-        </div>
-        {file && (
-  <div className="relative border p-2 rounded-md">
-    <div>
-      {file.type.startsWith("image/") && (
-        <img
-          src={URL.createObjectURL(file)}
-          alt="Preview"
-          className="w-14 h-14 object-cover rounded-md"
-        />
-      )}
-      {file.type.startsWith("video/") && (
-        <video
-          src={URL.createObjectURL(file)}
-          controls
-          className="w-24 h-24 rounded-md"
-        />
-      )}
-      {file.type === "application/pdf" && (
-        <p className="text-gray-600">PDF: {file.name}</p>
-      )}
-      {!file.type.startsWith("image/") &&
-        !file.type.startsWith("video/") &&
-        file.type !== "application/pdf" && (
-          <p className="text-gray-600">File: {file.name}</p>
-        )}
-    </div>
-    <button
-      onClick={() => setFile(null)}
-      className="bg-red-500 rounded-full text-white text-sm p-1 absolute top-[-5px] right-[-5px]"
-    >
-      <LuDelete className="text-sm"/>
-    </button>
-  </div>
-)}
+      </div>
 
-      </CardFooter>
-    </Card>
+      {/* Input Area */}
+      <div className="bg-white border-t border-slate-200">
+        {replyToMessage && (
+          <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-slate-500 mb-1">Replying to {replyToMessage.senderName}</p>
+              <p className="text-sm font-medium text-slate-800 truncate">{replyToMessage?.content}</p>
+            </div>
+            <button className="text-xs text-red-600 hover:underline ml-2 flex-shrink-0" onClick={() => setReplyToMessage(null)}>
+              <FaTimes />
+            </button>
+          </div>
+        )}
+        <div className="p-4">
+          {file && (
+            <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  {file.type.startsWith("image/") && (
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt="Preview"
+                      className="w-12 h-12 object-cover rounded-lg"
+                    />
+                  )}
+                  {file.type.startsWith("video/") && (
+                    <video
+                      src={URL.createObjectURL(file)}
+                      className="w-12 h-12 object-cover rounded-lg"
+                    />
+                  )}
+                  {file.type === "application/pdf" && (
+                    <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                      <span className="text-red-600 font-bold text-xs">PDF</span>
+                    </div>
+                  )}
+                  {!file.type.startsWith("image/") &&
+                    !file.type.startsWith("video/") &&
+                    file.type !== "application/pdf" && (
+                      <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
+                        <span className="text-slate-600 font-bold text-xs">FILE</span>
+                      </div>
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800 truncate">{file.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <button
+                  onClick={() => setFile(null)}
+                  className="p-1 hover:bg-red-100 rounded-full transition-colors"
+                >
+                  <LuDelete className="text-red-500 text-sm" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <label htmlFor="file-upload" className="cursor-pointer p-2 hover:bg-slate-100 rounded-full transition-colors">
+              <FaPaperclip className="text-slate-600 hover:text-slate-800" size={18} />
+            </label>
+            <input
+              id="file-upload"
+              type="file"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="hidden"
+            />
+            <div className="flex-1 relative">
+              <Input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Type your message..."
+                className="w-full px-4 py-3 pr-12 border-slate-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onKeyPress={(e) => e.key === 'Enter' && handleSendClick()}
+              />
+            </div>
+            <Button
+              onClick={handleSendClick}
+              disabled={isFileUploading || (!message.trim() && !file)}
+              variant="gradient"
+              size="pill"
+            >
+              {isFileUploading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                "Send"
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

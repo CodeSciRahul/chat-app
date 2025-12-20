@@ -19,49 +19,59 @@ export const BottomNavbar = ({ className }: { className: string }) => {
   return (
     <>
       <div className={cn("", className)}>
-        <div className="space-x-4 px-4 fixed bottom-0 w-[77%] border-t bg-white">
-          <div className="py-3">
-            <div className="flex space-y-1">
+        <div className="fixed bottom-0 w-[77%] bg-white border-t border-slate-200 shadow-lg">
+          <div className="px-4 py-2">
+            <div className="flex items-center justify-between">
               {menuOptions.map((item) => (
                 <div
                   key={item.id}
-                  className="relative w-full"
-                  onClick={() => navigate(`/${item?.id}`)}
+                  className="relative flex-1"
+                  onClick={() => {
+                    navigate(`/${item?.id}`);
+                    setActiveState(item.id);
+                  }}
                 >
                   <Button
-                    variant="ghost"
-                    className="w-full justify-start flex gap-2"
-                    onClick={() => setActiveState(item.id)}
+                    variant="ghostStrong"
+                    className={`w-full flex flex-col items-center gap-1 py-3 px-2 transition-all duration-200 ${
+                      activeState === item.id
+                        ? "text-blue-600 bg-blue-50"
+                        : "text-slate-600 hover:text-slate-800 hover:bg-slate-50"
+                    }`}
                   >
-                    <span
-                      className={` ${
-                        activeState === item.id
-                          ? "text-[#001F3F]"
-                          : "text-gray-600"
-                      }`}
-                    >
-                      {item.label}
-                    </span>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                      activeState === item.id
+                        ? "bg-blue-100"
+                        : "bg-slate-100"
+                    }`}>
+                      <span className="text-sm">
+                        {item.id === "" ? "🏠" : "📋"}
+                      </span>
+                    </div>
+                    <span className="text-xs font-medium">{item.label}</span>
                   </Button>
-                  {/* Bottom bar when active */}
+                  {/* Active indicator */}
                   {activeState === item.id && (
-                    <div className="absolute bottom-0 left-0 w-full h-1 bg-[#001F3F] rounded-t-md"></div>
+                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-blue-500 rounded-t-full"></div>
                   )}
                 </div>
               ))}
 
               <div
-                className="relative w-full text-gray-600"
+                className="relative flex-1"
                 onClick={() => {
                   dispatch(removeUserInfo());
                   window.location.href = "/login";
                 }}
               >
                 <Button
-                  variant="ghost"
-                  className={`w-full justify-start flex gap-2`}
+                  variant="dangerGhost"
+                  className="w-full flex flex-col items-center gap-1 py-3 px-2"
                 >
-                  <span>Log out</span>
+                  <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center">
+                    <span className="text-sm">🚪</span>
+                  </div>
+                  <span className="text-xs font-medium">Logout</span>
                 </Button>
               </div>
             </div>

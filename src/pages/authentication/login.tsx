@@ -12,34 +12,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
-import { userLogin } from "@/service/apiService";
+import { userLogin } from "@/services/apiService";
 import { useAppDispatch } from "@/Redux/Hooks/store";
 import { setUserInfo } from "@/Redux/feature/authSlice";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast"
 import { AxiosError } from "axios";
-
-type loginRes = {
-  message: string;
-  user: {
-    _id: string,
-    name: string,
-    email: string,
-    mobile: string,
-    isVerified: boolean,
-    googleId: null | string,
-    facebookId: null | string,
-    linkedinId: null | string,
-    createdAt: string,
-    updatedAt: string,
-  };
-  token: string;
-};
-
-type LoginFormInputs = {
-  email: string;
-  password: string;
-};
+import { LoginResponse, LoginFormInputs } from "@/types";
 
 export function LoginForm({
   className,
@@ -56,7 +35,7 @@ export function LoginForm({
 
   const onSubmit = async (data: LoginFormInputs) => {
     try {
-      const response = await userLogin(data)  as { data: loginRes };
+      const response = await userLogin(data)  as { data: LoginResponse };
       if(response?.data)
       {
       toast.success(`${response?.data?.message}`);

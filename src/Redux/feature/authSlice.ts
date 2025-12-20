@@ -1,27 +1,12 @@
 //AuthSclie to store and reterive user Information and token in local Storage
 
 import { createSlice,PayloadAction } from "@reduxjs/toolkit";
-
-interface loginSignupRes {
-    user: {
-      _id: string | null,
-      name: string | null,
-      email: string | null,
-      mobile: string | null,
-      isVerified: boolean,
-      googleId: null | string,
-      facebookId: null | string,
-      linkedinId: null | string,
-      createdAt: string | null,
-      updatedAt: string | null,
-    } | null;
-    token: string | null;
-}
+import { LoginSignupResponse } from "@/types";
 
 const storedUser = localStorage.getItem('user');
 const isaccess_token = localStorage.getItem('token');
 
-const initialState: loginSignupRes = { 
+const initialState: LoginSignupResponse = { 
 user: storedUser ? JSON.parse(storedUser) : null,
 token: isaccess_token ? JSON.parse(isaccess_token) : null,
 };
@@ -32,7 +17,7 @@ export const authSlice = createSlice({
     name: 'auth',
 
     reducers: {
-        setUserInfo: (state, action: PayloadAction<loginSignupRes>) => {
+        setUserInfo: (state, action: PayloadAction<LoginSignupResponse>) => {
             const {token, user} = action.payload
             state.user = user
             state.token = token;
@@ -45,7 +30,7 @@ export const authSlice = createSlice({
         },
 
         removeUserInfo: (state) => {
-            state.user = null
+            // state.user = null
             state.token = null
             localStorage.removeItem('user');
             localStorage.removeItem('token');
