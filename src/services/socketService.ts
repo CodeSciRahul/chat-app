@@ -4,7 +4,7 @@ import properties from "@/config/properties";
 import { Reaction, Message } from "@/types";
 
 // Socket setup
-export const socket: Socket = io(properties.PRIVATE_SOCKET_BASE_URL, {
+export const socket: Socket = io(properties.PUBLIC_SOCKET_BASE_URL, {
   transports: ["websocket"],
   reconnection: true,
   reconnectionDelay: 1000,

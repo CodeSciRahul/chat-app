@@ -424,7 +424,7 @@ const Chat: React.FC = () => {
                     : "bg-white text-slate-800 border border-slate-200 rounded-bl-md"
                     }`}
                 >
-                  {(msg?.senderId !== userId || selectionType === 'group') && (
+                  {(msg?.senderId !== userId && selectionType === 'group') && (
                     <p className="text-xs font-medium text-slate-600 mb-1">{msg.senderName}</p>
                   )}
                   {msg.replyTo && (

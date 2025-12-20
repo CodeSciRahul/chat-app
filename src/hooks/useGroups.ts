@@ -17,7 +17,6 @@ import {
   RemoveGroupMemberParams, 
   UpdateGroupMemberRoleParams, 
   UpdateGroupParams,
-  GroupDetails,
   GroupMember
 } from '@/types';
 import toast from 'react-hot-toast';

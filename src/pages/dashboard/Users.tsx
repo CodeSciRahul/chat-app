@@ -8,7 +8,7 @@ import { selectReciver } from "@/Redux/feature/cartSlice";
 import toast from "react-hot-toast";
 import { AxiosError } from "axios";
 import { AxiosResponse } from "axios";
-import { Receiver, Receivers } from "@/types";
+import { Receivers } from "@/types";
 
 export function Users({ className }: { className?: string }) {
   const [emailOrMobile, setEmailOrMobile] = useState<string>("");
