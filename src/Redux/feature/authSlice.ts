@@ -20,7 +20,7 @@ export const authSlice = createSlice({
     name: 'auth',
 
     reducers: {
-        setUserInfo: (state, action: PayloadAction<AppInfo>) => {
+        setUserInfo: (state, action: PayloadAction<Omit<AppInfo, "theme">>) => {
             const {token, user} = action.payload
             state.user = user
             state.token = token;
