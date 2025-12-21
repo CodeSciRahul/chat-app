@@ -4,7 +4,7 @@ import {
   SignupRequest, 
   AddUserPayload, 
   CreateGroupData, 
-  UpdateGroupData 
+  UpdateGroupData,
 } from "@/types";
 
 
@@ -20,6 +20,10 @@ export function userSignup(data: SignupRequest) {
 
 export function verifyUser(token: string | null){
   return http.patch(`/verify?token=${token}`);
+}
+
+export function updateProfile(data: FormData){
+  return http.put("/profile", data)
 }
 
 export function getReceivers() {
