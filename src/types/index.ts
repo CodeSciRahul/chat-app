@@ -7,6 +7,7 @@ export interface User {
   name: string;
   email: string;
   mobile: string;
+  profilePic?: string;
   isVerified: boolean;
   googleId: string | null;
   facebookId: string | null;
@@ -20,6 +21,7 @@ export interface AuthUser {
   name: string | null;
   email: string | null;
   mobile: string | null;
+  profilePic?: string;
   isVerified: boolean;
   googleId: string | null;
   facebookId: string | null;
@@ -28,9 +30,17 @@ export interface AuthUser {
   updatedAt: string | null;
 }
 
-export interface LoginSignupResponse {
-  user: AuthUser;
+export interface UpdateProfileRequest {
+  name: string,
+  email: string,
+  profilePic: string
+  mobile: string
+}
+
+export interface AppInfo {
+  user: AuthUser | null;
   token: string | null;
+  theme: 'light' | 'dark';
 }
 
 export interface LoginRequest {
@@ -77,6 +87,7 @@ export interface Receiver {
   name: string;
   email: string;
   mobile: string;
+  profilePic?: string;
 }
 
 export type Receivers = Receiver[];

@@ -1,52 +1,77 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { useAppSelecter } from '@/Redux/Hooks/store';
-import { FaArrowLeft, FaCamera, FaEdit, FaSave, FaTimes } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { useAppSelecter, useAppDispatch } from "@/Redux/Hooks/store";
+import { FaArrowLeft, FaCamera, FaEdit, FaSave, FaTimes } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useUpdateProfile } from "@/hooks/useUsers";
+import { setUpdatedProfile, setTheme } from "@/Redux/feature/authSlice";
+import { AuthUser } from "@/types";
+import { Spinner } from "@/components/ui/spinner";
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
+  const updateProfile = useUpdateProfile();
+  const { isPending } = updateProfile;
+  const dispatch = useAppDispatch();
   const user = useAppSelecter((state) => state.auth.user);
-  
+  const theme = useAppSelecter((state) => state.auth.theme)
+
   // Local state for editing
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    mobile: user?.mobile || '',
+    name: user?.name || "",
+    email: user?.email || "",
+    mobile: user?.mobile || "",
+    profilePic: user?.profilePic || "",
   });
-  
+  const [profilePic, setProfilePic] = useState<File | undefined>(undefined);
+
   // Settings state
   const [settings, setSettings] = useState({
     notifications: true,
-    darkMode: false,
+    darkMode: theme === "dark",
     showOnlineStatus: true,
     readReceipts: true,
   });
 
   const handleSave = () => {
-    // TODO: Implement save functionality
-    toast.success('Profile updated successfully!');
-    setIsEditing(false);
+    const formData = new FormData();
+
+    formData.append("name", profileData.name);
+    formData.append("email", profileData.email);
+    profilePic && formData.append("profilePic", profilePic);
+    formData.append("mobile", profileData.mobile);
+
+    updateProfile.mutate(formData, {
+      onSuccess(data) {
+        dispatch(setUpdatedProfile(data?.data as AuthUser));
+        setIsEditing(false);
+      },
+    });
   };
 
   const handleCancel = () => {
     setProfileData({
-      name: user?.name || '',
-      email: user?.email || '',
-      mobile: user?.mobile || '',
+      name: user?.name || "",
+      email: user?.email || "",
+      mobile: user?.mobile || "",
+      profilePic: user?.profilePic || "",
     });
+    setProfilePic(undefined);
     setIsEditing(false);
   };
 
-  const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePictureChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
-      // TODO: Implement profile picture upload
-      toast.success('Profile picture updated!');
+      setProfilePic(file);
+      const temporaryImageUrl = URL.createObjectURL(file);
+      setProfileData({ ...profileData, profilePic: temporaryImageUrl });
     }
   };
 
@@ -65,7 +90,9 @@ const Profile: React.FC = () => {
           </Button>
           <div>
             <h1 className="text-xl font-bold text-slate-800">Profile</h1>
-            <p className="text-sm text-slate-600">Manage your account settings</p>
+            <p className="text-sm text-slate-600">
+              Manage your account settings
+            </p>
           </div>
         </div>
       </div>
@@ -76,7 +103,9 @@ const Profile: React.FC = () => {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-slate-800">Profile Information</h2>
+                <h2 className="text-lg font-semibold text-slate-800">
+                  Profile Information
+                </h2>
                 {!isEditing ? (
                   <Button
                     onClick={() => setIsEditing(true)}
@@ -94,9 +123,16 @@ const Profile: React.FC = () => {
                       variant="gradient"
                       size="sm"
                       className="flex items-center gap-2"
+                      disabled={isPending}
                     >
-                      <FaSave size={14} />
-                      Save
+                      {!isPending ? (
+                        <>
+                          <FaSave size={14} />
+                          Save
+                        </>
+                      ) : (
+                        <Spinner />
+                      )}
                     </Button>
                     <Button
                       onClick={handleCancel}
@@ -114,56 +150,85 @@ const Profile: React.FC = () => {
               {/* Profile Picture */}
               <div className="flex items-center gap-6 mb-6">
                 <div className="relative">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-semibold text-2xl">
-                      {user?.name?.charAt(0).toUpperCase() || '?'}
-                    </span>
-                  </div>
-                  <label className="absolute bottom-0 right-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-600 transition-colors">
-                    <FaCamera className="text-white text-xs" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfilePictureChange}
-                      className="hidden"
+                  {!profileData?.profilePic ? (
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-semibold text-2xl">
+                        {user?.name?.charAt(0).toUpperCase() || "?"}
+                      </span>
+                    </div>
+                  ) : (
+                    <img
+                      src={profileData?.profilePic}
+                      alt=""
+                      className="w-20 h-20 rounded-full"
                     />
-                  </label>
+                  )}
+                  {isEditing && (
+                    <label className="absolute bottom-0 right-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-600 transition-colors">
+                      <FaCamera className="text-white text-xs" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProfilePictureChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-800">{user?.name}</h3>
+                  <h3 className="text-lg font-semibold text-slate-800">
+                    {user?.name}
+                  </h3>
                   <p className="text-sm text-slate-600">{user?.email}</p>
-                  <p className="text-xs text-slate-500">Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</p>
+                  <p className="text-xs text-slate-500">
+                    Member since{" "}
+                    {user?.createdAt
+                      ? new Date(user.createdAt).toLocaleDateString()
+                      : "N/A"}
+                  </p>
                 </div>
               </div>
 
               {/* Form Fields */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Name
+                  </label>
                   <Input
                     value={profileData.name}
-                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, name: e.target.value })
+                    }
                     disabled={!isEditing}
                     className="w-full"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Email
+                  </label>
                   <Input
                     value={profileData.email}
-                    onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, email: e.target.value })
+                    }
                     disabled={!isEditing}
                     type="email"
                     className="w-full"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Mobile</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Mobile
+                  </label>
                   <Input
                     value={profileData.mobile}
-                    onChange={(e) => setProfileData({ ...profileData, mobile: e.target.value })}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, mobile: e.target.value })
+                    }
                     disabled={!isEditing}
                     type="tel"
                     className="w-full"
@@ -177,49 +242,77 @@ const Profile: React.FC = () => {
           <div className="space-y-6">
             {/* Account Settings */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">Account Settings</h3>
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                Account Settings
+              </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium text-slate-800">Email Notifications</div>
-                    <div className="text-xs text-slate-500">Receive notifications via email</div>
+                    <div className="text-sm font-medium text-slate-800">
+                      Email Notifications
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      Receive notifications via email
+                    </div>
                   </div>
                   <Switch
                     checked={settings.notifications}
-                    onChange={(checked) => setSettings({ ...settings, notifications: checked })}
+                    onChange={(checked) =>
+                      setSettings({ ...settings, notifications: checked })
+                    }
                   />
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium text-slate-800">Dark Mode</div>
-                    <div className="text-xs text-slate-500">Switch to dark theme</div>
+                    <div className="text-sm font-medium text-slate-800">
+                      Dark Mode
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      Switch to dark theme
+                    </div>
                   </div>
                   <Switch
                     checked={settings.darkMode}
-                    onChange={(checked) => setSettings({ ...settings, darkMode: checked })}
+                    onChange={(checked) => {
+                      setSettings({ ...settings, darkMode: checked });
+                      const theme = settings.darkMode ? "light" : "dark"
+                      dispatch(setTheme(theme))
+                    }}
                   />
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium text-slate-800">Show Online Status</div>
-                    <div className="text-xs text-slate-500">Let others see when you're online</div>
+                    <div className="text-sm font-medium text-slate-800">
+                      Show Online Status
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      Let others see when you're online
+                    </div>
                   </div>
                   <Switch
                     checked={settings.showOnlineStatus}
-                    onChange={(checked) => setSettings({ ...settings, showOnlineStatus: checked })}
+                    onChange={(checked) =>
+                      setSettings({ ...settings, showOnlineStatus: checked })
+                    }
                   />
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium text-slate-800">Read Receipts</div>
-                    <div className="text-xs text-slate-500">Show when messages are read</div>
+                    <div className="text-sm font-medium text-slate-800">
+                      Read Receipts
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      Show when messages are read
+                    </div>
                   </div>
                   <Switch
                     checked={settings.readReceipts}
-                    onChange={(checked) => setSettings({ ...settings, readReceipts: checked })}
+                    onChange={(checked) =>
+                      setSettings({ ...settings, readReceipts: checked })
+                    }
                   />
                 </div>
               </div>
@@ -227,13 +320,17 @@ const Profile: React.FC = () => {
 
             {/* Account Actions */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">Account Actions</h3>
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                Account Actions
+              </h3>
               <div className="space-y-3">
                 <Button
                   variant="ghostStrong"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => toast.success('Change password functionality coming soon!')}
+                  onClick={() =>
+                    toast.success("Change password functionality coming soon!")
+                  }
                 >
                   Change Password
                 </Button>
@@ -241,7 +338,9 @@ const Profile: React.FC = () => {
                   variant="ghostStrong"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => toast.success('Download data functionality coming soon!')}
+                  onClick={() =>
+                    toast.success("Download data functionality coming soon!")
+                  }
                 >
                   Download My Data
                 </Button>
@@ -249,7 +348,9 @@ const Profile: React.FC = () => {
                   variant="ghostStrong"
                   size="sm"
                   className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                  onClick={() => toast.error('Delete account functionality coming soon!')}
+                  onClick={() =>
+                    toast.error("Delete account functionality coming soon!")
+                  }
                 >
                   Delete Account
                 </Button>
@@ -258,16 +359,20 @@ const Profile: React.FC = () => {
 
             {/* Account Status */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">Account Status</h3>
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                Account Status
+              </h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-slate-600">Email Verified</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    user?.isVerified 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-red-100 text-red-700'
-                  }`}>
-                    {user?.isVerified ? 'Verified' : 'Not Verified'}
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full ${
+                      user?.isVerified
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {user?.isVerified ? "Verified" : "Not Verified"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
