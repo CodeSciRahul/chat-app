@@ -556,7 +556,7 @@ const Chat: React.FC = () => {
                 </div>
                 {msg?.reactions && (
                   <div className="absolute bottom-[-8px] left-3 flex max-w-full">
-                    <div className="flex items-center gap-1 max-w-[calc(100%-20px)] overflow-hidden">
+                    <div className="flex items-center overflow-hidden">
                       {msg?.reactions
                         ?.slice(0, 5)
                         .map((reaction: Reaction, index: number) => (
