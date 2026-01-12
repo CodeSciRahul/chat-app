@@ -5,7 +5,7 @@ The **Chat App Frontend** is a React-based application that provides a user-frie
 ---
 
 # Live Link
-https://chat-app--ruddy.vercel.app
+https://chat-app-sigma-one-63.vercel.app
 
 ## Features
 - User authentication and authorization.
